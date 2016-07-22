@@ -20,6 +20,23 @@ class MiXiaClient(requests.Session):
     sign_hash_radius = consts.MIXIA_SIGN_HASH_RADIUS
 
     @staticmethod
+    def generate_payload(method, **kwargs):
+        # Dumped from my iPhone 4s at mixia 4.1.0
+        payload = {
+            'app_v': '4010000',
+            'method': method,
+            'lg': '1',
+            'device_id': '5C:95:AE:78:7F:A3',
+            'platform_id': '2',
+            'proxy': '0',
+            'ch': '201200',
+            'v': '1.1',
+            'network': '1'
+        }
+        payload.update(kwargs)
+        return payload
+
+    @staticmethod
     def parse_response(response):
         logging.debug("Got response "
                       "from mixia: %s.", response.content)
@@ -60,19 +77,10 @@ class MiXiaClient(requests.Session):
         return self.parse_response(response)
 
     def exchange_taobao_token(self, token):
-        exchange_payload = {
-            'app_v': '4010000',
-            'method': 'Oneid.get',
-            'lg': '1',
-            'device_id': '5C:95:AE:78:7F:A3',
-            'platform_id': '2',
-            'proxy': '0',
-            'ch': '201200',
-            'token': token,
-            'name': 'oneid.xiami.token.exchange',
-            'v': '1.1',
-            'network': '1',
-        }
+        method = 'Oneid.get'
+        exchange_payload = self.generate_payload(
+            method, token=token, name='oneid.xiami.token.exchange'
+        )
         response_data = self.get(self.api_url,
                                  params=exchange_payload,
                                  require_token=False,
@@ -86,17 +94,8 @@ class MiXiaClient(requests.Session):
         return access_token
 
     def show_user_profile(self):
-        show_user_payload = {
-            'app_v': '4010000',
-            'method': 'Members.showUser',
-            'lg': '1',
-            'device_id': '5C:95:AE:78:7F:A3',
-            'platform_id': '2',
-            'proxy': '0',
-            'ch': '201200',
-            'v': '1.1',
-            'network': '1'
-        }
+        method = 'Members.showUser'
+        show_user_payload = self.generate_payload(method)
         response_data = self.get(self.api_url,
                                  params=show_user_payload,
                                  require_token=True,
@@ -104,20 +103,11 @@ class MiXiaClient(requests.Session):
         return response_data
 
     def fetch_album_info(self, album_id):
-        album_info_payload = {
-            'app_v': '4010000',
-            'av': 'ios_4.1.0',
-            'ch': '201200',
-            'device_id': '5C:95:AE:78:7F:A3',
-            'h_uid': self.user_id,
-            'id': str(album_id),
-            'lg': '1',
-            'method': 'Albums.detail',
-            'network': '1',
-            'platform_id': '2',
-            'v': '1.1'
-        }
-
+        method = 'Albums.detail'
+        album_info_payload = self.generate_payload(
+            method, h_uid=self.user_id, id=str(album_id),
+            av='ios_4.1.0'
+        )
         response_data = self.get(self.api_url,
                                  params=album_info_payload,
                                  require_token=True,
@@ -125,21 +115,12 @@ class MiXiaClient(requests.Session):
         return response_data
 
     def fetch_hq_song_info(self, *song_ids):
-        hq_song_info_payload = {
-            'app_v': '4010000',
-            'ch': '201200',
-            'device_id': '5C:95:AE:78:7F:A3',
-            'h_uid': self.user_id,
-            'ids': ','.join([str(sid) for sid in song_ids]),
-            'lg': '1',
-            'method': 'Songs.getSimpleSongs',
-            'network': '1',
-            'platform_id': '2',
-            'proxy': '0',
-            'quality': 'h',
-            'v': '1.1',
-        }
-
+        method = 'Songs.getSimpleSongs'
+        ids = ','.join([str(sid) for sid in song_ids])
+        hq_song_info_payload = self.generate_payload(
+            method, h_uid=self.user_id, ids=ids,
+            quality='h'
+        )
         response_data = self.get(self.api_url,
                                  params=hq_song_info_payload,
                                  require_token=True,
