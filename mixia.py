@@ -159,7 +159,6 @@ class MiXiaClient(requests.Session):
         m = hashlib.md5()
 
         sorted_payload = sorted(payload.iteritems(), key=lambda o: o[0])
-        print sorted_payload
         for k, v in sorted_payload:
             m.update('{}{}'.format(k, v))
 
