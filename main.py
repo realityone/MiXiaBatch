@@ -3,10 +3,9 @@ from __future__ import unicode_literals
 import logging
 from multiprocessing.pool import ThreadPool
 
-from account import MiXiaUser
-from song import MiXiaAlbum
-from consts import TRACK_HIGH_QUALITY
-
+from mixia_batch.account import MiXiaUser
+from mixia_batch.song import MiXiaAlbum
+from mixia_batch.consts import TRACK_HIGH_QUALITY
 
 logging.basicConfig(level=logging.DEBUG)
 
