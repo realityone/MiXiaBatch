@@ -102,6 +102,10 @@ class MiXiaAlbum(namedtuple(
             'language', 'gmt_publish', 'songs'
         ])):
 
+    @property
+    def big_logo(self):
+        return ''.join(self.logo.rsplit('_1', 1))
+
     @classmethod
     def from_id(cls, album_id, client):
         album_response = client.album_detail(album_id)
