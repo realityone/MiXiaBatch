@@ -10,6 +10,8 @@ import mixia
 
 namedtuple = collections.namedtuple
 
+__all__ = ['LoginFailed', 'MiXiaUser']
+
 
 class LoginFailed(Exception):
     pass

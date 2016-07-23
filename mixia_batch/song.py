@@ -8,6 +8,8 @@ import consts
 
 namedtuple = collections.namedtuple
 
+__all__ = ['MiXiaTrackDetail', 'MiXiaAlbum', 'MiXiaSong']
+
 
 class MiXiaTrackDetail(namedtuple(
         '_MiXiaTrackDetail', [

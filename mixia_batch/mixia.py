@@ -9,6 +9,8 @@ import requests
 
 import consts
 
+__all__ = ['MiXiaError', 'MiXiaClient']
+
 
 class MiXiaError(Exception):
     pass
