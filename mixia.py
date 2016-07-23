@@ -6,6 +6,7 @@ import hashlib
 import logging
 
 import requests
+
 import consts
 
 
@@ -21,17 +22,9 @@ class MiXiaClient(requests.Session):
 
     @staticmethod
     def generate_payload(method, **kwargs):
-        # Dumped from my iPhone 4s at mixia 4.1.0
+        # Dumped from MiXia Music 1.3.4
         payload = {
-            'app_v': '4010000',
             'method': method,
-            'lg': '1',
-            'device_id': '5C:95:AE:78:7F:A3',
-            'platform_id': '2',
-            'proxy': '0',
-            'ch': '201200',
-            'v': '1.1',
-            'network': '1'
         }
         payload.update(kwargs)
         return payload
@@ -76,23 +69,6 @@ class MiXiaClient(requests.Session):
         response = super(MiXiaClient, self).request(*args, **kwargs)
         return self.parse_response(response)
 
-    def exchange_taobao_token(self, token):
-        method = 'Oneid.get'
-        exchange_payload = self.generate_payload(
-            method, token=token, name='oneid.xiami.token.exchange'
-        )
-        response_data = self.get(self.api_url,
-                                 params=exchange_payload,
-                                 require_token=False,
-                                 require_sign=True)
-
-        access_token = response_data.get('result', {}).get('access_token')
-        if not access_token:
-            raise MiXiaError("MiXia access token not found in "
-                             "response: {}".format(response_data))
-
-        return access_token
-
     def show_user_profile(self):
         method = 'Members.showUser'
         show_user_payload = self.generate_payload(method)
@@ -102,27 +78,25 @@ class MiXiaClient(requests.Session):
                                  require_sign=True)
         return response_data
 
-    def fetch_album_info(self, album_id):
+    def album_detail(self, album_id):
         method = 'Albums.detail'
-        album_info_payload = self.generate_payload(
-            method, h_uid=self.user_id, id=str(album_id),
-            av='ios_4.1.0'
+        album_detail_payload = self.generate_payload(
+            method, id=str(album_id),
         )
         response_data = self.get(self.api_url,
-                                 params=album_info_payload,
+                                 params=album_detail_payload,
                                  require_token=True,
                                  require_sign=True)
         return response_data
 
-    def fetch_hq_song_info(self, *song_ids):
-        method = 'Songs.getSimpleSongs'
-        ids = ','.join([str(sid) for sid in song_ids])
-        hq_song_info_payload = self.generate_payload(
-            method, h_uid=self.user_id, ids=ids,
-            quality='h'
+    def get_track_detail(self, track_id, quality=consts.TRACK_LOW_QUALITY):
+        method = 'Songs.getTrackDetail'
+
+        track_detail_paylod = self.generate_payload(
+            method, id=str(track_id), quality=quality
         )
         response_data = self.get(self.api_url,
-                                 params=hq_song_info_payload,
+                                 params=track_detail_paylod,
                                  require_token=True,
                                  require_sign=True)
         return response_data

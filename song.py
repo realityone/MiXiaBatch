@@ -4,59 +4,87 @@ import logging
 import collections
 
 import mixia
+import consts
 
 namedtuple = collections.namedtuple
 
 
-class MiXiaHQSong(namedtuple(
-        '_MiXiaHQSong', [
-            'play_volume', 'listen_file', 'mv_id',
-            'flag', 'expire', 'logo',
-            'quality', 'song_id', 'song_name',
-            'play_authority', 'music_type', 'length'
+class MiXiaTrackDetail(namedtuple(
+        '_MiXiaTrackDetail', [
+            'recommends', 'hash', 'mv_id', 'album_id',
+            'track', 'demo', 'track_url', 'lyric_text',
+            'lyric_trc', 'artist_name', 'play_seconds',
+            'flag', 'lyric', 'lyric_karaok', 'rec_note',
+            'singers', 'logo', 'album_name', 'quality',
+            'level', 'song_id', 'name', 'title',
+            'song_name', 'album_logo', 'lyric_file',
+            'artist_logo', 'favourite', 'length', 'play_counts',
+            'default_resource_id', 'artist_id', 'res_id',
+            'cd_serial'
         ])):
 
     @classmethod
-    def from_dict(cls, hq_song_dict):
-        hq_song_data = {
-            f: hq_song_dict.get(f)
+    def from_dict(cls, track_detail):
+        track_detail_data = {
+            f: track_detail.get(f)
             for f in cls._fields
         }
-        return MiXiaHQSong(**hq_song_data)
+        return cls(**track_detail_data)
 
     def __repr__(self):
-        return '<MiXiaHQSong(song_id={})>'.format(self.song_id)
+        return '<MiXiaTrackDetail(song_id={}, quality={})>'.format(
+            self.song_id,
+            self.quality
+        )
 
 
-class MiXiaSong(namedtuple(
-        '_MiXiaSong', [
-            'song_id', 'recommends', 'listen_file',
-            'mv_id', 'album_id', 'track',
-            'demo', 'song_name', 'album_logo',
-            'flag', 'artist_name', 'play_seconds',
-            'length', 'is_check', 'rec_note',
-            'singers', 'logo', 'artist_id',
-            'album_name', 'cd_serial'
-        ])):
+class MiXiaSong(namedtuple('_MiXiaSong', ['track'])):
 
-    def __init__(self, *args, **kwargs):
-        super(MiXiaSong, self).__init__(*args, **kwargs)
-        self.hq_version = None
+    class MiXiaTrack(namedtuple(
+            '_MiXiaTrack', [
+                'song_id', 'recommends', 'listen_file',
+                'mv_id', 'album_id', 'track',
+                'demo', 'song_name', 'album_logo',
+                'flag', 'artist_name', 'play_seconds',
+                'length', 'is_check', 'rec_note',
+                'singers', 'logo', 'artist_id',
+                'album_name', 'cd_serial'
+            ])):
 
-    def set_hq_version(self, hq_version):
-        self.hq_version = hq_version
+        @classmethod
+        def from_dict(cls, track_dict):
+            track_data = {
+                f: track_dict.get(f)
+                for f in cls._fields
+            }
+            return cls(**track_data)
 
     @classmethod
     def from_dict(cls, song_dict):
-        song_data = {
-            f: song_dict.get(f)
-            for f in cls._fields
-        }
-        return MiXiaSong(**song_data)
+        return cls(cls.MiXiaTrack.from_dict(song_dict))
+
+    def __init__(self, *args, **kwargs):
+        super(MiXiaSong, self).__init__(*args, **kwargs)
+        self.track_detail = None
+
+    @property
+    def song_id(self):
+        return self.track.song_id
+
+    def fetch_detail(self, client,
+                     quality=consts.TRACK_LOW_QUALITY, force=False):
+        if not self.track_detail or force:
+            track_detail = client.get_track_detail(
+                self.song_id, quality=quality
+            )
+            self.track_detail = MiXiaTrackDetail.from_dict(track_detail)
+        return self.track_detail
 
     def __repr__(self):
-        return '<MiXiaSong(song_id={}, hq_version={})>'.format(self.song_id,
-                                                               self.hq_version)
+        return '<MiXiaSong(song_id={}, track_detail={})>'.format(
+            self.song_id,
+            self.track_detail
+        )
 
 
 class MiXiaAlbum(namedtuple(
@@ -74,7 +102,7 @@ class MiXiaAlbum(namedtuple(
 
     @classmethod
     def from_id(cls, album_id, client):
-        album_response = client.fetch_album_info(album_id)
+        album_response = client.album_detail(album_id)
         return cls.from_dict(album_response)
 
     @classmethod
@@ -86,17 +114,7 @@ class MiXiaAlbum(namedtuple(
             for f in cls._fields
         }
         album_data['songs'] = [MiXiaSong.from_dict(s) for s in songs]
-        return MiXiaAlbum(**album_data)
-
-    def to_hq_version(self, client):
-        song_ids = [s.song_id for s in self.songs]
-        hq_songs_info = client.fetch_hq_song_info(*song_ids)
-        hq_songs = {
-            hq_song['song_id']: MiXiaHQSong.from_dict(hq_song)
-            for hq_song in hq_songs_info.get('songs', [])
-        }
-        for song in self.songs:
-            song.set_hq_version(hq_songs.get(song.song_id))
+        return cls(**album_data)
 
     def __repr__(self):
         return '<MiXiaAlbum(album_id={}, songs={})>'.format(
