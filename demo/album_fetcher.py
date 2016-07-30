@@ -83,7 +83,7 @@ def main():
 
             song_name = '{}_{}_{}'.format(
                 detail.cd_serial, detail.track,
-                detail.song_name
+                detail.song_name.replace('/', '_')
             )
 
             if not eyed3:
