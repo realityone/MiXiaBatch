@@ -58,11 +58,8 @@ def main():
     for aid in album_ids:
         thread_pool = ThreadPool(processes=10)
         album = song.MiXiaAlbum.from_id(aid, client)
-        thread_pool.map_async(
-            lambda s: s.fetch_detail(
-                client, consts.TRACK_HIGH_QUALITY
-            ), album.songs
-        )
+        thread_pool.map_async(lambda s: s.fetch_detail(client, consts.TRACK_HIGH_QUALITY),
+                              album.songs)
         thread_pool.close()
         thread_pool.join()
 
@@ -70,9 +67,9 @@ def main():
         album_logo_resp = requests.get(
             album.big_logo,
             headers={
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'
-            }
-        )
+                'User-Agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'
+            })
         album_logo_resp.raise_for_status()
         album_logo = album_logo_resp.content
         for s in album.songs:
@@ -81,22 +78,18 @@ def main():
             print filename
             subprocess.call(['wget', '-O', filename, detail.track_url])
 
-            song_name = '{}_{}_{}'.format(
-                detail.cd_serial, detail.track,
-                detail.song_name.replace('/', '_')
-            )
+            song_name = '{}_{}_{}'.format(detail.cd_serial, detail.track,
+                                          detail.song_name.replace('/', '_'))
 
             if not eyed3:
                 print "no eyed3, skip update ID3."
-                os.rename(filename, song_name)
+                os.rename(filename, os.path.join(album.album_id, song_name))
                 continue
 
             song_id3 = eyed3.load(filename)
             song_id3.initTag()
             song_id3.rename(song_name)
-            song_id3.tag.images.set(type_=3,
-                                    img_data=album_logo,
-                                    mime_type='image/jpeg')
+            song_id3.tag.images.set(type_=3, img_data=album_logo, mime_type='image/jpeg')
             song_id3.tag.title = detail.song_name
             song_id3.tag.album = detail.album_name
             song_id3.tag.album_artist = detail.artist_name
