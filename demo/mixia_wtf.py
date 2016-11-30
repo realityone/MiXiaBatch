@@ -7,6 +7,7 @@ import os
 import sys
 import base64
 import shutil
+import urllib
 import subprocess
 import collections
 
@@ -22,6 +23,7 @@ namedtuple = collections.namedtuple
 
 WTF_URL = base64.decodestring(
     'aHR0cDovL3d3dy54aWFtaS5jb20vc29uZy9wbGF5bGlzdC9pZC97fS90eXBlLzEvY2F0L2pzb24=')
+WTF_HQ_URL = base64.decodestring('aHR0cDovL3d3dy54aWFtaS5jb20vc29uZy9nZXRocXNvbmcvc2lkL3t9')
 
 
 def usage():
@@ -45,7 +47,7 @@ def validate_fields(required_fields, data_dict):
             raise Exception("Invalid track dict, field {} missed".format(f))
 
 
-class Audio(namedtuple('_Audio', ['audioQualityEnum', 'filePath'])):
+class Audio(namedtuple('_Audio', ['audioQualityEnum', 'filePath', 'rate'])):
     @classmethod
     def from_dict(cls, audio_dict):
         validate_fields(cls._fields, audio_dict)
@@ -67,7 +69,43 @@ class Track(
 
     @property
     def hq_audio(self):
-        return next((audio for audio in self.allAudios if audio.audioQualityEnum == 'HIGH'))
+        return next((audio for audio in self.allAudios
+                     if audio.audioQualityEnum == 'HIGH' and audio == 320), None)
+
+    @staticmethod
+    def decrypt_location(location):
+        block_count, content = int(location[0]), location[1:]
+        content_len = len(content)
+        block_size = int(content_len / block_count)
+        last = content_len % block_count
+
+        parts = [content[i * (block_size + 1):(i + 1) * (block_size + 1)] for i in xrange(last)]
+        for i in xrange(block_count - 1):
+            parts.append(content[(block_size + 1) * last:][i * block_size:(i + 1) * block_size])
+
+        max_len = max([len(p) for p in parts])
+        fixed_parts = [
+            (list(p) + [''] * (max_len - len(p))) if len(p) < max_len else list(p) for p in parts
+        ]
+        url = urllib.unquote(''.join(c for cs in zip(*fixed_parts) for c in cs)).replace('^', '0')
+        return url
+
+    def fetch_hq(self):
+        hq_url = WTF_HQ_URL.format(self.song_id)
+        hq_resp = requests.get(
+            hq_url,
+            headers={
+                'User-Agent':
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
+                'Referer': 'http://www.xiami.com/'
+            })
+        hq_resp.raise_for_status()
+
+        hq_data = hq_resp.json()
+        if 'location' not in hq_data:
+            raise Exception("invalid hq song response: {}".format(hq_data))
+
+        return self.decrypt_location(hq_data['location'])
 
 
 class Album(object):
@@ -143,12 +181,18 @@ def main():
         for t in album.tracks:
             filename = './{}/{}.mp3'.format(album.album_id, t.song_id)
             print filename
-            subprocess.call(['wget', '-O', filename, t.hq_audio.filePath])
+            if not t.hq_audio:
+                hq_url = t.fetch_hq()
+            else:
+                hq_url = t.hq_audio.filePath
+            subprocess.call(['wget', '-O', filename, hq_url])
 
-            song_name = '{}_{}_{}.mp3'.format(t.cd_serial, t.track, t.name.replace('/', '_'))
+            song_name = '{}_{}_{}'.format(t.cd_serial, t.track, t.name.replace('/', '_'))
 
             if not eyed3:
                 print "no eyed3, skip update ID3."
+                if not song_name.endswith('.mp3'):
+                    song_name += '.mp3'
                 os.rename(filename, os.path.join(album.album_id, song_name))
                 continue
 
