@@ -9,7 +9,7 @@ pip install https://github.com/realityone/MiXiaBatch/archive/master.zip
 
 ### Usage
 
-```
+```python
 from __future__ import unicode_literals
 
 import logging
