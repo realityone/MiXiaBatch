@@ -70,7 +70,7 @@ class Track(
     @property
     def hq_audio(self):
         return next((audio for audio in self.allAudios
-                     if audio.audioQualityEnum == 'HIGH' and audio == 320), None)
+                     if audio.audioQualityEnum == 'HIGH' and audio.rate == 320), None)
 
     @staticmethod
     def decrypt_location(location):
